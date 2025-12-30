@@ -1,6 +1,14 @@
 # @nodemod/admin
 
+> **Note:** This package is intended for use with [NodeMod](https://github.com/nodemod/nodemod), a Node.js-based plugin system for Half-Life/GoldSrc dedicated servers. It will not work standalone.
+
 Admin plugins for NodeMod Half-Life server, providing player management, voting, menus, and server administration commands.
+
+## Documentation
+
+- **[Admin System Guide](https://nodemod.org/docs/guides/admin-system)** - Configuration and usage
+- **[Admin Plugin Development](https://nodemod.org/docs/guides/admin-plugins)** - Creating custom admin plugins
+- **[API Reference](https://nodemod.org/docs/api)** - Full API documentation
 
 ## Credits
 
@@ -32,10 +40,8 @@ This port aims to maintain compatibility with the original AMX Mod X command str
 
 ## Installation
 
-This package is designed to work with the NodeMod Half-Life server plugin.
-
 ```bash
-npm install @nodemod/core
+npm install @nodemod/admin
 ```
 
 ## Configuration
