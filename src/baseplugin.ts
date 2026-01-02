@@ -14,7 +14,7 @@
 // for localization lookups and command/CVAR registration.
 
 import nodemodCore from '@nodemod/core';
-import { adminSystem } from './admin';
+import { adminSystem } from './admin.plugin';
 import { ADMIN_ADMIN } from './constants';
 import { registerCommand as helpRegisterCommand, cvarRegistry } from './helpregistry';
 import localization from './localization';

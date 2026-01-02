@@ -3,7 +3,7 @@
 // Original by the AMX Mod X Development Team, originally developed by OLO
 
 import nodemodCore from '@nodemod/core';
-import { adminSystem } from './admin';
+import { adminSystem } from './admin.plugin';
 import { ADMIN_VOTE, ADMIN_ADMIN, CMDTARGET_OBEY_IMMUNITY, CMDTARGET_ALLOW_SELF } from './constants';
 
 import localization from './localization';

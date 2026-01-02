@@ -20,7 +20,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import nodemodCore from '@nodemod/core';
-import { adminSystem } from './admin';
+import { adminSystem } from './admin.plugin';
 import { BasePlugin } from './baseplugin';
 import { ADMIN_CFG } from './constants';
 

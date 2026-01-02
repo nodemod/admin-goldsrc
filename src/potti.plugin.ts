@@ -3,7 +3,7 @@
 // Allows admins to create a bot which can be fully controlled
 
 import nodemodCore from '@nodemod/core';
-import { adminSystem } from './admin';
+import { adminSystem } from './admin.plugin';
 import { ADMIN_LEVEL_D } from './constants';
 import * as utils from './utils';
 import { Plugin, PluginMetadata } from './pluginloader';

@@ -5,7 +5,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import nodemodCore from '@nodemod/core';
-import { adminSystem } from './admin';
+import { adminSystem } from './admin.plugin';
 import { ADMIN_MENU, ADMIN_CVAR, readFlags } from './constants';
 
 import { BasePlugin } from './baseplugin';

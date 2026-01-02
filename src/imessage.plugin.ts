@@ -14,7 +14,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import nodemodCore from '@nodemod/core';
-import { adminSystem } from './admin';
+import { adminSystem } from './admin.plugin';
 import { BasePlugin } from './baseplugin';
 import { Plugin, PluginMetadata, pluginLoader } from './pluginloader';
 import * as utils from './utils';

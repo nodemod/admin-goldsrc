@@ -3,7 +3,7 @@
 // Original by the AMX Mod X Development Team, originally developed by tcquest78
 
 import nodemodCore from '@nodemod/core';
-import { adminSystem } from './admin';
+import { adminSystem } from './admin.plugin';
 import { ADMIN_ADMIN, ADMIN_USER } from './constants';
 import { helpRegistry } from './helpregistry';
 import localization from './localization';

@@ -59,10 +59,22 @@ export interface LoadedPlugin {
 class PluginLoader {
     private plugins: Map<string, LoadedPlugin> = new Map();
     private configPath: string;
+    private searchPaths: string[];
 
     constructor() {
-        // Default config path - configs are in nodemod/configs/, not plugins/configs/
-        this.configPath = path.join(process.cwd(), '..', 'configs', 'plugins.ini');
+        // Use nodemod.cwd + nodemod.gameDir to find configs and plugins
+        // Structure: <cwd>/<gameDir>/addons/nodemod/{configs,plugins}
+        const nodemodBase = path.join(nodemod.cwd, nodemod.gameDir, 'addons', 'nodemod');
+
+        this.configPath = path.join(nodemodBase, 'configs', 'plugins.ini');
+
+        // Default search paths for plugins (in order of priority)
+        // 1. plugins/dist - custom plugins
+        // 2. plugins/packages/admin/dist - admin package plugins
+        this.searchPaths = [
+            path.join(nodemodBase, 'plugins', 'dist'),
+            path.join(nodemodBase, 'plugins', 'packages', 'admin', 'dist'),
+        ];
     }
 
     /**
@@ -73,16 +85,71 @@ class PluginLoader {
     }
 
     /**
+     * Set search paths for resolving plugins
+     * Plugins are searched in order until found
+     */
+    setSearchPaths(paths: string[]): void {
+        this.searchPaths = paths;
+    }
+
+    /**
+     * Add a search path for plugins
+     */
+    addSearchPath(searchPath: string): void {
+        this.searchPaths.push(searchPath);
+    }
+
+    /**
+     * Try to require a module from search paths
+     * Returns the module if found, null otherwise
+     * Only loads *.plugin.js files
+     */
+    private tryRequire(pluginName: string): { module: any; path: string } | null {
+        for (const basePath of this.searchPaths) {
+            const fullPath = path.join(basePath, `${pluginName}.plugin`);
+            try {
+                const module = require(fullPath);
+                return { module, path: fullPath };
+            } catch (e: any) {
+                // Only continue if module not found, rethrow other errors
+                if (e.code !== 'MODULE_NOT_FOUND') {
+                    throw e;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Load a plugin by name
-     * @param pluginName Name from plugins.ini (e.g., 'adminchat')
-     * @param importPath Optional import path (defaults to `./${pluginName}`)
+     * @param pluginName Name from plugins.ini (e.g., 'adminchat' or 'admin/example')
+     * @param importPath Optional import path (overrides search path resolution)
      */
     async loadPlugin(pluginName: string, importPath?: string): Promise<void> {
-        const modulePath = importPath || `./${pluginName}`;
+        let module: any;
+        let modulePath: string;
+
+        if (importPath) {
+            modulePath = importPath;
+            module = await import(modulePath);
+        } else {
+            const result = this.tryRequire(pluginName);
+            if (!result) {
+                console.error(`[PluginLoader] Plugin not found: ${pluginName}`);
+                console.error(`[PluginLoader] Searched in: ${this.searchPaths.join(', ')}`);
+                this.plugins.set(pluginName, {
+                    plugin: null as any,
+                    pluginName,
+                    status: 'error',
+                    error: `Plugin not found in search paths`
+                });
+                return;
+            }
+            module = result.module;
+            modulePath = result.path;
+        }
 
         try {
-            // Dynamic import
-            const module = await import(modulePath);
 
             // Get the plugin class (default export)
             const PluginClass: PluginConstructor = module.default;
@@ -121,15 +188,42 @@ class PluginLoader {
 
     /**
      * Load a plugin synchronously (for require-style loading)
-     * @param pluginName Name from plugins.ini (e.g., 'adminchat')
-     * @param importPath Optional import path (defaults to `./${pluginName}`)
+     * @param pluginName Name from plugins.ini (e.g., 'adminchat' or 'admin/example')
+     * @param importPath Optional import path (overrides search path resolution)
      */
     loadPluginSync(pluginName: string, importPath?: string): void {
-        const modulePath = importPath || `./${pluginName}`;
+        let module: any;
+
+        if (importPath) {
+            try {
+                module = require(importPath);
+            } catch (e) {
+                console.error(`[PluginLoader] Failed to load ${pluginName}:`, e);
+                this.plugins.set(pluginName, {
+                    plugin: null as any,
+                    pluginName,
+                    status: 'error',
+                    error: String(e)
+                });
+                return;
+            }
+        } else {
+            const result = this.tryRequire(pluginName);
+            if (!result) {
+                console.error(`[PluginLoader] Plugin not found: ${pluginName}`);
+                console.error(`[PluginLoader] Searched in: ${this.searchPaths.join(', ')}`);
+                this.plugins.set(pluginName, {
+                    plugin: null as any,
+                    pluginName,
+                    status: 'error',
+                    error: `Plugin not found in search paths`
+                });
+                return;
+            }
+            module = result.module;
+        }
 
         try {
-            const module = require(modulePath);
-
             let plugin: Plugin;
 
             // Check if module exports a pre-created instance (e.g., admin exports adminSystem)

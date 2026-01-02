@@ -705,7 +705,7 @@ export function sendHudToTarget(
  * Lazy getter for adminSystem to avoid circular dependency.
  * This is called at runtime, not import time.
  */
-function getAdminSystem(): typeof import('./admin').adminSystem {
+function getAdminSystem(): typeof import('./admin.plugin').adminSystem {
     return require('./admin').adminSystem;
 }
 

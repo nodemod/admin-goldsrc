@@ -3,7 +3,7 @@
 // Original by the AMX Mod X Development Team, originally developed by OLO
 
 import nodemodCore from '@nodemod/core';
-import { adminSystem } from './admin';
+import { adminSystem } from './admin.plugin';
 import { BasePlugin } from './baseplugin';
 import { Plugin, PluginMetadata, pluginLoader } from './pluginloader';
 import * as utils from './utils';

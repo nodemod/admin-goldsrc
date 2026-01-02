@@ -15,7 +15,7 @@
 //   amx_scrollmsg "Welcome to %hostname%!" 60
 
 import nodemodCore from '@nodemod/core';
-import { adminSystem } from './admin';
+import { adminSystem } from './admin.plugin';
 import { BasePlugin } from './baseplugin';
 import { Plugin, PluginMetadata, pluginLoader } from './pluginloader';
 
