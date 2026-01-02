@@ -94,7 +94,7 @@ class MapChooser extends BasePlugin implements Plugin {
         // This tracks round wins for winlimit/maxrounds logic
         try {
             // Cast to any since TeamScore is a game-specific event
-            (nodemodCore.events as any).on('TeamScore', (data: any) => {
+            (nodemod as any).on('TeamScore', (data: any) => {
                 if (data && data.team) {
                     const teamIndex = data.team === 'CT' ? 0 : 1;
                     this.teamScores[teamIndex] = data.score || 0;

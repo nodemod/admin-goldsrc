@@ -183,7 +183,7 @@ class MultiLingual extends BasePlugin implements Plugin {
 
     private registerEvents() {
         // Client connect - show info message
-        nodemodCore.events.on('dllClientPutInServer', (entity: nodemod.Entity) => {
+        nodemod.on('dllClientPutInServer', (entity: nodemod.Entity) => {
             if (!entity) return;
 
             const clientLangs = this.amxClientLanguages?.int || 1;
@@ -204,7 +204,7 @@ class MultiLingual extends BasePlugin implements Plugin {
         });
 
         // Client disconnect - clean up
-        nodemodCore.events.on('dllClientDisconnect', (entity: nodemod.Entity) => {
+        nodemod.on('dllClientDisconnect', (entity: nodemod.Entity) => {
             if (!entity) return;
 
             const playerIndex = nodemod.eng.indexOfEdict(entity);

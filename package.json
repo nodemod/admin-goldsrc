@@ -3,17 +3,17 @@
   "version": "1.0.0",
   "description": "Admin plugins for nodemod Half-Life server",
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",                                                           
-  "exports": {                                                                                
-    ".": {                                                                                    
-      "types": "./dist/index.d.ts",                                                     
-      "default": "./dist/index.js"                                                      
-    },                                                                                        
-    "./*": {                                                                                  
-      "types": "./dist/*.d.ts",                                                         
-      "default": "./dist/*.js"                                                          
-    }                                                                                         
-  }, 
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
