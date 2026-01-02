@@ -102,23 +102,19 @@ class AdminChat extends BasePlugin implements Plugin {
     }
 
     private hookSayCommands() {
-        // Hook into client commands to catch say and say_team
-        nodemod.on('dllClientCommand', (entity: nodemod.Entity, text: string) => {
-            const args = utils.parseCommand(text);
-            if (args.length === 0) return;
+        // Hook say command for admin chat prefixes
+        nodemodCore.cmd.registerClient('say', (entity, args) => {
+            const message = args.join(' ').replace(/^"|"$/g, '');
+            if (this.handleSayChat(entity, message)) {
+                nodemod.setMetaResult(nodemod.META_RES.SUPERCEDE);
+            }
+        });
 
-            const cmd = args[0].toLowerCase();
-
-            if (cmd === 'say') {
-                const message = args.slice(1).join(' ').replace(/^"|"$/g, '');
-                if (this.handleSayChat(entity, message)) {
-                    nodemod.setMetaResult(nodemod.META_RES.SUPERCEDE);
-                }
-            } else if (cmd === 'say_team') {
-                const message = args.slice(1).join(' ').replace(/^"|"$/g, '');
-                if (this.handleSayAdmin(entity, message)) {
-                    nodemod.setMetaResult(nodemod.META_RES.SUPERCEDE);
-                }
+        // Hook say_team command for admin chat
+        nodemodCore.cmd.registerClient('say_team', (entity, args) => {
+            const message = args.join(' ').replace(/^"|"$/g, '');
+            if (this.handleSayAdmin(entity, message)) {
+                nodemod.setMetaResult(nodemod.META_RES.SUPERCEDE);
             }
         });
     }

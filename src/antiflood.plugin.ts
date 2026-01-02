@@ -49,16 +49,16 @@ class AntiFlood extends BasePlugin implements Plugin {
     }
 
     private hookSayCommands() {
-        nodemod.on('dllClientCommand', (entity: nodemod.Entity, text: string) => {
-            const args = utils.parseCommand(text);
-            if (args.length === 0) return;
+        // Check flood on say commands
+        nodemodCore.cmd.registerClient('say', (entity, args) => {
+            if (this.checkFlood(entity)) {
+                nodemod.setMetaResult(nodemod.META_RES.SUPERCEDE);
+            }
+        });
 
-            const cmd = args[0].toLowerCase();
-
-            if (cmd === 'say' || cmd === 'say_team') {
-                if (this.checkFlood(entity)) {
-                    nodemod.setMetaResult(nodemod.META_RES.SUPERCEDE);
-                }
+        nodemodCore.cmd.registerClient('say_team', (entity, args) => {
+            if (this.checkFlood(entity)) {
+                nodemod.setMetaResult(nodemod.META_RES.SUPERCEDE);
             }
         });
     }

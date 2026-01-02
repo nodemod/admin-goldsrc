@@ -141,15 +141,9 @@ class NextMap extends BasePlugin implements Plugin {
     }
 
     private registerSayCommands() {
-        // Hook into client commands to catch say commands
-        nodemod.on('dllClientCommand', (entity: nodemod.Entity, text: string) => {
-            const args = utils.parseCommand(text);
-            if (args.length === 0) return;
-
-            const cmd = args[0].toLowerCase();
-            if (cmd !== 'say') return;
-
-            const message = args.slice(1).join(' ').replace(/^"|"$/g, '').toLowerCase();
+        // Register say command handler
+        nodemodCore.cmd.registerClient('say', (entity, args) => {
+            const message = args.join(' ').replace(/^"|"$/g, '').toLowerCase();
 
             if (message === 'nextmap') {
                 this.sayNextMap(entity);

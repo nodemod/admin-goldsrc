@@ -66,19 +66,12 @@ class TimeLeft extends BasePlugin implements Plugin {
 
     private registerCommands() {
         // Client say commands
-        nodemod.on('dllClientCommand', (entity: nodemod.Entity, text: string) => {
-            const args = utils.parseCommand(text);
-            if (args.length === 0) return;
-
-            const cmd = args[0].toLowerCase();
-
-            if (cmd === 'say') {
-                const message = args.slice(1).join(' ').toLowerCase().replace(/"/g, '');
-                if (message === 'timeleft') {
-                    this.sayTimeLeft(entity);
-                } else if (message === 'thetime') {
-                    this.sayTheTime(entity);
-                }
+        nodemodCore.cmd.registerClient('say', (entity, args) => {
+            const message = args.join(' ').toLowerCase().replace(/"/g, '');
+            if (message === 'timeleft') {
+                this.sayTimeLeft(entity);
+            } else if (message === 'thetime') {
+                this.sayTheTime(entity);
             }
         });
 
