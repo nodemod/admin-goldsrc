@@ -226,11 +226,11 @@ export interface LoadedPlugin {
     plugin: Plugin;
     /** Plugin name from plugins.ini */
     pluginName: string;
-    /** Load status */
-    status: 'running' | 'paused' | 'error' | 'stopped';
+    /** Load status (matches AMXX: running, paused, stopped, bad load) */
+    status: 'running' | 'paused' | 'bad load' | 'stopped';
     /** Whether the plugin is currently paused */
     paused: boolean;
-    /** Error message if status is 'error' */
+    /** Error message if status is 'bad load' */
     error?: string;
 }
 
@@ -322,7 +322,7 @@ class PluginLoader {
                 this.plugins.set(pluginName, {
                     plugin: null as any,
                     pluginName,
-                    status: 'error',
+                    status: 'bad load',
                     paused: false,
                     error: `Plugin not found in search paths`
                 });
@@ -364,7 +364,7 @@ class PluginLoader {
             this.plugins.set(pluginName, {
                 plugin: null as any,
                 pluginName,
-                status: 'error',
+                status: 'bad load',
                 paused: false,
                 error: String(e)
             });
@@ -387,7 +387,7 @@ class PluginLoader {
                 this.plugins.set(pluginName, {
                     plugin: null as any,
                     pluginName,
-                    status: 'error',
+                    status: 'bad load',
                     paused: false,
                     error: String(e)
                 });
@@ -401,7 +401,7 @@ class PluginLoader {
                 this.plugins.set(pluginName, {
                     plugin: null as any,
                     pluginName,
-                    status: 'error',
+                    status: 'bad load',
                     paused: false,
                     error: `Plugin not found in search paths`
                 });
@@ -454,7 +454,7 @@ class PluginLoader {
             this.plugins.set(pluginName, {
                 plugin: null as any,
                 pluginName,
-                status: 'error',
+                status: 'bad load',
                 paused: false,
                 error: String(e)
             });

@@ -1064,13 +1064,13 @@ class AdminCommands extends BasePlugin implements Plugin {
 
         for (let i = startIndex; i < endIndex; i++) {
             const loaded = plugins[i];
-            const meta = loaded.plugin.metadata;
+            const meta = loaded.plugin?.metadata;
             const index = String(i).padStart(3);
-            const name = (meta.name || 'Unknown').padEnd(23).substring(0, 23);
-            const version = (meta.version || '?').padEnd(9).substring(0, 9);
-            const author = (meta.author || 'Unknown').padEnd(17).substring(0, 17);
+            const name = (meta?.name || 'Unknown').padEnd(23).substring(0, 23);
+            const version = (meta?.version || '?').padEnd(9).substring(0, 9);
+            const author = (meta?.author || 'Unknown').padEnd(17).substring(0, 17);
             const filename = (loaded.pluginName || '?').padEnd(17).substring(0, 17);
-            const status = loaded.status === 'running' ? 'running' : loaded.status;
+            const status = loaded.status;
 
             this.sendConsole(entity, `[${index}] ${name} ${version} ${author} ${filename} ${status}`);
         }

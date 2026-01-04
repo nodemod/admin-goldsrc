@@ -111,8 +111,8 @@ class PauseCfg extends BasePlugin implements Plugin {
         if (this.isSystemPlugin(plugin.plugin.metadata.name)) {
             return 'locked';
         }
-        // Check for error/bad load status
-        if (plugin.status === 'error') return 'bad_load';
+        // Check for bad load status
+        if (plugin.status === 'bad load') return 'bad_load';
         // Check for stopped status
         if (plugin.status === 'stopped') return 'stopped';
         if (this.stoppedPlugins.has(plugin.pluginName)) return 'stopped';
