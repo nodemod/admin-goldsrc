@@ -70,11 +70,11 @@ class MenuFront extends BasePlugin implements Plugin {
         });
 
         // Server commands to add menu items
-        nodemodCore.cmd.registerServer('amx_addmenuitem', (args) => {
+        this.registerServerCommand('amx_addmenuitem', 0, '<title> <command> <access> [plugin] - add admin menu item', (args) => {
             this.addMenuItemCmd(args, false);
         });
 
-        nodemodCore.cmd.registerServer('amx_addclientmenuitem', (args) => {
+        this.registerServerCommand('amx_addclientmenuitem', 0, '<title> <command> <access> [plugin] - add client menu item', (args) => {
             this.addMenuItemCmd(args, true);
         });
     }

@@ -55,7 +55,7 @@ class ScrollMsg extends BasePlugin implements Plugin {
 
     private registerCommands() {
         // Server command to set the scrolling message
-        nodemodCore.cmd.registerServer('amx_scrollmsg', (args: string[]) => {
+        this.registerServerCommand('amx_scrollmsg', 0, '<message> [color] [speed] - set scrolling message', (args: string[]) => {
             this.setMessage(args);
         });
     }

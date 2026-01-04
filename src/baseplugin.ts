@@ -16,7 +16,7 @@
 import nodemodCore from '@nodemod/core';
 import { adminSystem } from './admin.plugin';
 import { ADMIN_ADMIN } from './constants';
-import { registerCommand as helpRegisterCommand, cvarRegistry } from './helpregistry';
+import { registerCommand as helpRegisterCommand, registerServerCommand as helpRegisterServerCommand, registerClientCommand as helpRegisterClientCommand, cvarRegistry } from './helpregistry';
 import localization from './localization';
 import * as utils from './utils';
 import type { PluginMetadata } from './pluginloader';
@@ -66,6 +66,32 @@ export abstract class BasePlugin {
         callback: (entity: nodemod.Entity | null, args: string[]) => void
     ): void {
         helpRegisterCommand(name, flags, description, callback, this.pluginName);
+    }
+
+    /**
+     * Register a server-only command with automatic plugin tracking.
+     * This command can only be executed from the server console or rcon.
+     */
+    protected registerServerCommand(
+        name: string,
+        flags: number,
+        description: string,
+        callback: (args: string[]) => void
+    ): void {
+        helpRegisterServerCommand(name, flags, description, callback, this.pluginName);
+    }
+
+    /**
+     * Register a client-only command with automatic plugin tracking.
+     * This command can only be executed by connected clients.
+     */
+    protected registerClientCommand(
+        name: string,
+        flags: number,
+        description: string,
+        callback: (entity: nodemod.Entity, args: string[]) => void
+    ): void {
+        helpRegisterClientCommand(name, flags, description, callback, this.pluginName);
     }
 
     /**

@@ -60,7 +60,7 @@ class InfoMessages extends BasePlugin implements Plugin {
         this.amxFreqImessage = cvar.wrap('amx_freq_imessage');
 
         // Register server command
-        nodemodCore.cmd.registerServer('amx_imessage', (args) => {
+        this.registerServerCommand('amx_imessage', 0, '<message> [color] - add info message', (args) => {
             this.setMessage(args);
         });
 

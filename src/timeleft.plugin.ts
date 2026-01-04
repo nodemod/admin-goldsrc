@@ -76,7 +76,7 @@ class TimeLeft extends BasePlugin implements Plugin {
         });
 
         // Server command for display settings
-        nodemodCore.cmd.registerServer('amx_time_display', (args: string[]) => {
+        this.registerServerCommand('amx_time_display', 0, 'Set time display: amx_time_display <abcd> (a=remaining, b=elapsed, c=current, d=limit)', (args: string[]) => {
             this.setDisplaying(args);
         });
     }
