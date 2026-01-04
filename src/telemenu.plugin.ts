@@ -202,7 +202,7 @@ class TeleMenu extends BasePlugin implements Plugin {
     /**
      * Plugin unload - cleanup per-player data
      */
-    onUnload() {
+    override onUnload() {
         this.menuOption.clear();
         this.savedOrigin.clear();
     }

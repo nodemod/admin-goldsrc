@@ -388,13 +388,11 @@ class AdminSystem extends BasePlugin implements Plugin {
 
     /**
      * Execute config files (amxx.cfg, sql.cfg)
-     * Called from index.ts after all plugins are loaded so their CVARs are registered
+     * Called from index.ts after all plugins are loaded so their CVARs are registered.
+     * No delay needed since plugins are loaded synchronously.
      */
     public executeConfigFiles() {
-        // Delay config execution until server is fully initialized
-        setTimeout(() => {
-            this.doExecuteConfigFiles();
-        }, 100);
+        this.doExecuteConfigFiles();
     }
 
     private doExecuteConfigFiles() {

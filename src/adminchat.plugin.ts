@@ -71,7 +71,13 @@ class AdminChat extends BasePlugin implements Plugin {
 
     constructor(pluginName: string) {
         super(pluginName);
+    }
 
+    /**
+     * Called when plugin is loaded - register commands
+     * Equivalent to plugin_init
+     */
+    override onLoad() {
         // Register commands
         this.registerCommands();
 

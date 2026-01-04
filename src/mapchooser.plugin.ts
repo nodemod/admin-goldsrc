@@ -73,7 +73,13 @@ class MapChooser extends BasePlugin implements Plugin {
         this.amxExtendmapStep = cvar.wrap('amx_extendmap_step');
         this.amxNextmap = cvar.wrap('amx_nextmap');
         this.mpTimelimit = cvar.wrap('mp_timelimit');
+    }
 
+    /**
+     * Called when plugin is loaded - register events and load settings
+     * Equivalent to plugin_init
+     */
+    override onLoad() {
         // Register for CS TeamScore event if available
         this.registerTeamScoreEvent();
 
@@ -94,7 +100,8 @@ class MapChooser extends BasePlugin implements Plugin {
         // This tracks round wins for winlimit/maxrounds logic
         try {
             // Cast to any since TeamScore is a game-specific event
-            (nodemod as any).on('TeamScore', (data: any) => {
+            // Use this.on() for automatic cleanup on unload
+            (this as any).on('TeamScore', (data: any) => {
                 if (data && data.team) {
                     const teamIndex = data.team === 'CT' ? 0 : 1;
                     this.teamScores[teamIndex] = data.score || 0;
@@ -340,13 +347,17 @@ class MapChooser extends BasePlugin implements Plugin {
         this.logAmx(`Vote: Voting for the nextmap finished. The nextmap will be ${nextMap}`);
     }
 
-    // Called when plugin is unloaded - save current map as last map
-    onUnload() {
+    /**
+     * Called when plugin is unloading - save state
+     * Equivalent to plugin_end
+     */
+    override onUnload() {
         this.saveLastMap();
         if (this.checkTimerId) {
             clearInterval(this.checkTimerId);
             this.checkTimerId = null;
         }
+        super.onUnload();
     }
 }
 

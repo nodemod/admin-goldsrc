@@ -488,7 +488,7 @@ class StatsCfg extends BasePlugin implements Plugin {
     /**
      * Plugin load - register commands during precache phase (like original)
      */
-    onLoad() {
+    override onLoad() {
         // Settings are loaded in constructor
     }
 }

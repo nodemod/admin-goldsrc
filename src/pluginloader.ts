@@ -1,6 +1,39 @@
 // Plugin Loader System
 // Loads plugins dynamically based on plugins.ini configuration
 // Similar to AMX Mod X plugin loading system
+//
+// ============================================================================
+// AMX Mod X plugin_* Forward Mapping
+// ============================================================================
+//
+// | AMX Mod X Forward  | NodeMod Method   | When Called                        |
+// |--------------------|------------------|------------------------------------|
+// | plugin_precache()  | onPrecache()     | During map precache phase          |
+// | plugin_natives()   | constructor      | Plugin instantiation               |
+// | plugin_init()      | onLoad()         | After constructor                  |
+// | plugin_cfg()       | onConfig()       | After ALL plugins + configs loaded |
+// | plugin_pause()     | onPause()        | When plugin is paused              |
+// | plugin_unpause()   | onUnpause()      | When plugin is unpaused            |
+// | plugin_log()       | onLog(message)   | When a log message is written      |
+// | plugin_end()       | onUnload()       | Before plugin unloading            |
+// | plugin_modules()   | (deprecated)     | No longer used since AMXX 1.50     |
+//
+// Lifecycle Order (SYNCHRONOUS - onConfig waits for all onLoad to complete):
+//
+// STARTUP:
+//   1. For each plugin: constructor() + onLoad()
+//   2. executeConfigFiles()
+//   3. For each plugin: onConfig()
+//
+// MAP LIFECYCLE:
+//   4. onPrecache()  ← dllPrecache
+//   5. onMapStart()  ← dllServerActivate
+//   6. onMapEnd()    ← dllServerDeactivate
+//
+// SHUTDOWN:
+//   7. onUnload()    ← Server shutdown
+//
+// ============================================================================
 
 import fs from 'fs';
 import path from 'path';
@@ -22,13 +55,160 @@ export interface PluginMetadata {
 
 /**
  * Plugin interface that all plugins must implement
+ *
+ * Lifecycle order:
+ * 1. onPrecache() - During map precache phase (register models, sounds, etc.)
+ * 2. constructor() - Plugin instantiation
+ * 3. onLoad() - Plugin initialization (register cvars, commands, events)
+ * 4. onConfig() - After ALL plugins loaded (configs executed, cvars set)
+ * 5. onMapStart() - When a new map starts (after precache, server active)
+ * 6. onMapEnd() - When map is ending (before new map or shutdown)
+ * 7. onPause() / onUnpause() - When plugin execution is paused/resumed
+ * 8. onUnload() - Plugin cleanup before unloading
  */
 export interface Plugin {
     /** Plugin metadata */
     readonly metadata: PluginMetadata;
-    /** Called when plugin is loaded (optional) */
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // INITIALIZATION HOOKS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Called during map precache phase.
+     * Use this to precache models, sounds, sprites, and generic files.
+     * Equivalent to AMX Mod X: plugin_precache()
+     *
+     * @example
+     * onPrecache() {
+     *     nodemod.eng.precacheModel('models/custom.mdl');
+     *     nodemod.eng.precacheSound('sounds/custom.wav');
+     * }
+     */
+    onPrecache?(): void;
+
+    /**
+     * Called when plugin is loaded and initialized.
+     * Use this to register cvars, commands, events, and initialize data structures.
+     * Equivalent to AMX Mod X: plugin_init()
+     *
+     * @example
+     * onLoad() {
+     *     this.registerCvar('my_cvar', '1');
+     *     nodemodCore.cmd.add({ name: 'mycmd', handler: this.myCommand });
+     * }
+     */
     onLoad?(): void;
-    /** Called when plugin is unloaded (optional) */
+
+    /**
+     * Called after ALL plugins have been loaded and initialized.
+     * At this point, all cvars and commands from all plugins are registered.
+     * Config files (amxx.cfg, etc.) have been executed.
+     * Equivalent to AMX Mod X: plugin_cfg()
+     *
+     * @example
+     * onConfig() {
+     *     // Read cvar values that may have been set by config files
+     *     const myValue = this.myCvar.float;
+     *     this.applySettings(myValue);
+     * }
+     */
+    onConfig?(): void;
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // MAP LIFECYCLE HOOKS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Called when a new map starts (server is active).
+     * This is called after precaching is complete and players can connect.
+     *
+     * @example
+     * onMapStart() {
+     *     this.resetMapState();
+     *     console.log(`Map started: ${nodemod.mapname}`);
+     * }
+     */
+    onMapStart?(): void;
+
+    /**
+     * Called when the current map is ending.
+     * Use this to save state, cleanup map-specific resources.
+     *
+     * @example
+     * onMapEnd() {
+     *     this.savePlayerStats();
+     *     this.clearMapData();
+     * }
+     */
+    onMapEnd?(): void;
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // EXECUTION STATE HOOKS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Called when plugin execution is paused.
+     * Plugin will stop receiving events until unpaused.
+     * Equivalent to AMX Mod X: plugin_pause()
+     *
+     * @example
+     * onPause() {
+     *     this.saveState();
+     *     console.log('Plugin paused');
+     * }
+     */
+    onPause?(): void;
+
+    /**
+     * Called when plugin execution is resumed after being paused.
+     * Equivalent to AMX Mod X: plugin_unpause()
+     *
+     * @example
+     * onUnpause() {
+     *     this.restoreState();
+     *     console.log('Plugin resumed');
+     * }
+     */
+    onUnpause?(): void;
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // LOG HOOKS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Called when a message is about to be logged.
+     * Can be used to intercept, modify, or block log messages.
+     * Equivalent to AMX Mod X: plugin_log()
+     *
+     * @param message The log message
+     * @returns false to block the log message, true or undefined to allow it
+     *
+     * @example
+     * onLog(message: string) {
+     *     if (message.includes('sensitive')) {
+     *         return false; // Block this log
+     *     }
+     *     // Allow all other logs
+     * }
+     */
+    onLog?(message: string): boolean | void;
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // CLEANUP HOOKS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Called when plugin is being unloaded.
+     * Use this to cleanup resources, save state, unregister handlers.
+     * Equivalent to AMX Mod X: plugin_end()
+     *
+     * @example
+     * onUnload() {
+     *     this.saveAllData();
+     *     this.cleanup();
+     * }
+     */
     onUnload?(): void;
 }
 
@@ -47,7 +227,9 @@ export interface LoadedPlugin {
     /** Plugin name from plugins.ini */
     pluginName: string;
     /** Load status */
-    status: 'running' | 'error' | 'stopped';
+    status: 'running' | 'paused' | 'error' | 'stopped';
+    /** Whether the plugin is currently paused */
+    paused: boolean;
     /** Error message if status is 'error' */
     error?: string;
 }
@@ -141,6 +323,7 @@ class PluginLoader {
                     plugin: null as any,
                     pluginName,
                     status: 'error',
+                    paused: false,
                     error: `Plugin not found in search paths`
                 });
                 return;
@@ -164,7 +347,8 @@ class PluginLoader {
             this.plugins.set(pluginName, {
                 plugin,
                 pluginName,
-                status: 'running'
+                status: 'running',
+                paused: false
             });
 
             // Call onLoad if available
@@ -181,6 +365,7 @@ class PluginLoader {
                 plugin: null as any,
                 pluginName,
                 status: 'error',
+                paused: false,
                 error: String(e)
             });
         }
@@ -203,6 +388,7 @@ class PluginLoader {
                     plugin: null as any,
                     pluginName,
                     status: 'error',
+                    paused: false,
                     error: String(e)
                 });
                 return;
@@ -216,6 +402,7 @@ class PluginLoader {
                     plugin: null as any,
                     pluginName,
                     status: 'error',
+                    paused: false,
                     error: `Plugin not found in search paths`
                 });
                 return;
@@ -250,7 +437,8 @@ class PluginLoader {
             this.plugins.set(pluginName, {
                 plugin,
                 pluginName,
-                status: 'running'
+                status: 'running',
+                paused: false
             });
 
             // Call onLoad if available
@@ -267,6 +455,7 @@ class PluginLoader {
                 plugin: null as any,
                 pluginName,
                 status: 'error',
+                paused: false,
                 error: String(e)
             });
         }
@@ -360,6 +549,213 @@ class PluginLoader {
     isLoaded(pluginName: string): boolean {
         const plugin = this.plugins.get(pluginName);
         return plugin?.status === 'running';
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // LIFECYCLE HOOK DISPATCHERS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Call onPrecache() on all loaded plugins.
+     * Should be called during map precache phase (dllPrecache event).
+     */
+    callPrecache(): void {
+        for (const entry of this.plugins.values()) {
+            if (entry.status === 'running' && !entry.paused && entry.plugin?.onPrecache) {
+                try {
+                    entry.plugin.onPrecache();
+                } catch (e) {
+                    console.error(`[PluginLoader] Error in onPrecache for ${entry.pluginName}:`, e);
+                }
+            }
+        }
+    }
+
+    /**
+     * Call onConfig() on all loaded plugins.
+     * Should be called after all plugins are loaded and config files are executed.
+     */
+    callConfig(): void {
+        for (const entry of this.plugins.values()) {
+            if (entry.status === 'running' && !entry.paused && entry.plugin?.onConfig) {
+                try {
+                    entry.plugin.onConfig();
+                } catch (e) {
+                    console.error(`[PluginLoader] Error in onConfig for ${entry.pluginName}:`, e);
+                }
+            }
+        }
+    }
+
+    /**
+     * Call onMapStart() on all loaded plugins.
+     * Should be called when a new map starts (dllServerActivate event).
+     */
+    callMapStart(): void {
+        for (const entry of this.plugins.values()) {
+            if (entry.status === 'running' && !entry.paused && entry.plugin?.onMapStart) {
+                try {
+                    entry.plugin.onMapStart();
+                } catch (e) {
+                    console.error(`[PluginLoader] Error in onMapStart for ${entry.pluginName}:`, e);
+                }
+            }
+        }
+    }
+
+    /**
+     * Call onMapEnd() on all loaded plugins.
+     * Should be called when the current map is ending (dllServerDeactivate event).
+     */
+    callMapEnd(): void {
+        for (const entry of this.plugins.values()) {
+            if (entry.status === 'running' && !entry.paused && entry.plugin?.onMapEnd) {
+                try {
+                    entry.plugin.onMapEnd();
+                } catch (e) {
+                    console.error(`[PluginLoader] Error in onMapEnd for ${entry.pluginName}:`, e);
+                }
+            }
+        }
+    }
+
+    /**
+     * Call onLog() on all loaded plugins.
+     * Should be called when a log message is about to be written.
+     * @param message The log message
+     * @returns true if the message should be logged, false if any plugin blocked it
+     */
+    callLog(message: string): boolean {
+        for (const entry of this.plugins.values()) {
+            if (entry.status === 'running' && !entry.paused && entry.plugin?.onLog) {
+                try {
+                    const result = entry.plugin.onLog(message);
+                    if (result === false) {
+                        return false; // Plugin blocked the log
+                    }
+                } catch (e) {
+                    console.error(`[PluginLoader] Error in onLog for ${entry.pluginName}:`, e);
+                }
+            }
+        }
+        return true; // Allow the log
+    }
+
+    /**
+     * Call onUnload() on all loaded plugins and clear the plugin list.
+     * Should be called on server shutdown or plugin system reload.
+     */
+    unloadAll(): void {
+        for (const entry of this.plugins.values()) {
+            if (entry.plugin?.onUnload) {
+                try {
+                    entry.plugin.onUnload();
+                } catch (e) {
+                    console.error(`[PluginLoader] Error in onUnload for ${entry.pluginName}:`, e);
+                }
+            }
+            entry.status = 'stopped';
+        }
+        this.plugins.clear();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // PLUGIN STATE MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Pause a plugin's execution.
+     * The plugin will stop receiving events until unpaused.
+     * @returns true if the plugin was paused, false if not found or already paused
+     */
+    pausePlugin(pluginName: string): boolean {
+        const entry = this.plugins.get(pluginName);
+        if (!entry || entry.paused || entry.status !== 'running') {
+            return false;
+        }
+
+        // Call onPause hook
+        if (entry.plugin?.onPause) {
+            try {
+                entry.plugin.onPause();
+            } catch (e) {
+                console.error(`[PluginLoader] Error in onPause for ${pluginName}:`, e);
+            }
+        }
+
+        // Set paused state on BasePlugin instances (for event handler filtering)
+        const plugin = entry.plugin as any;
+        if (typeof plugin?._setPaused === 'function') {
+            plugin._setPaused(true);
+        }
+
+        entry.paused = true;
+        entry.status = 'paused';
+        return true;
+    }
+
+    /**
+     * Unpause a plugin's execution.
+     * The plugin will resume receiving events.
+     * @returns true if the plugin was unpaused, false if not found or not paused
+     */
+    unpausePlugin(pluginName: string): boolean {
+        const entry = this.plugins.get(pluginName);
+        if (!entry || !entry.paused || entry.status !== 'paused') {
+            return false;
+        }
+
+        // Set paused state on BasePlugin instances (for event handler filtering)
+        const plugin = entry.plugin as any;
+        if (typeof plugin?._setPaused === 'function') {
+            plugin._setPaused(false);
+        }
+
+        entry.paused = false;
+        entry.status = 'running';
+
+        // Call onUnpause hook
+        if (entry.plugin?.onUnpause) {
+            try {
+                entry.plugin.onUnpause();
+            } catch (e) {
+                console.error(`[PluginLoader] Error in onUnpause for ${pluginName}:`, e);
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Unload a specific plugin.
+     * @returns true if the plugin was unloaded, false if not found
+     */
+    unloadPlugin(pluginName: string): boolean {
+        const entry = this.plugins.get(pluginName);
+        if (!entry) {
+            return false;
+        }
+
+        // Call onUnload hook
+        if (entry.plugin?.onUnload) {
+            try {
+                entry.plugin.onUnload();
+            } catch (e) {
+                console.error(`[PluginLoader] Error in onUnload for ${pluginName}:`, e);
+            }
+        }
+
+        entry.status = 'stopped';
+        this.plugins.delete(pluginName);
+        return true;
+    }
+
+    /**
+     * Check if a plugin is paused
+     */
+    isPaused(pluginName: string): boolean {
+        const entry = this.plugins.get(pluginName);
+        return entry?.paused ?? false;
     }
 }
 

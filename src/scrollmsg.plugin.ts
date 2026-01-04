@@ -221,7 +221,7 @@ class ScrollMsg extends BasePlugin implements Plugin {
     /**
      * Plugin unload handler
      */
-    onUnload() {
+    override onUnload() {
         this.stopScrolling();
     }
 }

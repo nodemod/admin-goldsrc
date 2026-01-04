@@ -39,6 +39,9 @@ const CS_TEAM_SPECTATOR = 3;
 const CS_OFFSET_TEAM = 114;  // m_iTeam offset in CBasePlayer
 const CS_OFFSET_MODELNAME = 126;  // m_iModelName offset
 
+// Temp bans shared xvar name (shared with admincmd)
+const TEMPBANS_XVAR = 'g_tempBans';
+
 class PlMenu extends BasePlugin implements Plugin {
     readonly metadata: PluginMetadata = {
         name: 'Players Menu',
@@ -65,8 +68,36 @@ class PlMenu extends BasePlugin implements Plugin {
     // Client commands from clcmds.ini
     private clientCommands: ClientCommand[] = [];
 
+    // Silent transfer mode per player
+    private silentMode: Map<number, boolean> = new Map();
+
+    // Temp bans storage (authid/ip -> original authid)
+    private static tempBans: Map<string, string> = new Map();
+
+    // CS module detection
+    private isCSMod: boolean = false;
+
+    // Cached CVAR pointers
+    private allowSpectators: any;
+    private mpLimitTeams: any;
+
+    // Track players who have already changed team this round
+    private teamChangeTracker: Set<number> = new Set();
+
     constructor(pluginName: string) {
         super(pluginName);
+    }
+
+    /**
+     * Called when plugin is loaded - register commands and load config
+     * Equivalent to plugin_init
+     */
+    override onLoad() {
+        // Detect CS mod
+        this.detectCSMod();
+
+        // Cache CVARs
+        this.cacheCVars();
 
         // Load clcmds.ini
         this.loadClientCommands();
@@ -76,6 +107,75 @@ class PlMenu extends BasePlugin implements Plugin {
 
         // Register server commands for ban times and slap damage
         this.registerServerCommands();
+
+        // Register event handlers for team change tracking
+        this.registerEventHandlers();
+    }
+
+    /**
+     * Detect if we're running Counter-Strike
+     */
+    private detectCSMod(): void {
+        // Check the game directory
+        try {
+            const gameDir = nodemod.gameDir || '';
+            const gameDirLower = gameDir.toLowerCase();
+            this.isCSMod = gameDirLower.includes('cstrike') ||
+                           gameDirLower.includes('czero') ||
+                           gameDirLower.includes('cs_') ||
+                           gameDirLower === 'cs';
+        } catch (e) {
+            this.isCSMod = false;
+        }
+
+        if (this.isCSMod) {
+            this.info('Counter-Strike detected - team features enabled');
+        }
+    }
+
+    /**
+     * Cache frequently-used CVAR pointers for performance
+     */
+    private cacheCVars(): void {
+        const cvar = nodemodCore.cvar;
+        this.allowSpectators = cvar.wrap('allow_spectators');
+        this.mpLimitTeams = cvar.wrap('mp_limitteams');
+    }
+
+    /**
+     * Register event handlers for team tracking
+     */
+    private registerEventHandlers(): void {
+        // Reset team change tracker on new round
+        this.on('dllServerActivate', () => {
+            this.teamChangeTracker.clear();
+        });
+
+        // Track player disconnects to clean up state
+        this.on('dllClientDisconnect', (entity: nodemod.Entity) => {
+            const entityId = nodemod.eng.indexOfEdict(entity);
+            this.silentMode.delete(entityId);
+            this.teamChangeTracker.delete(entityId);
+        });
+    }
+
+    /**
+     * Called when plugin is unloading - cleanup
+     * Equivalent to plugin_end
+     */
+    override onUnload() {
+        // Clear player state maps
+        this.menuPosition.clear();
+        this.menuOption.clear();
+        this.menuSettings.clear();
+        this.menuSelectNum.clear();
+        this.menuSelect.clear();
+
+        // Clear per-player tracking maps
+        this.silentMode.clear();
+        this.teamChangeTracker.clear();
+
+        super.onUnload();
     }
 
     private registerServerCommands() {
@@ -348,6 +448,7 @@ class PlMenu extends BasePlugin implements Plugin {
         const targetName = target.netname || 'Unknown';
         const userId = nodemod.eng.getPlayerUserId(target);
         const authId = nodemod.eng.getPlayerAuthId(target);
+        const ipAddr = utils.getPlayerIP(target);
 
         // Log
         const adminUserId = nodemod.eng.getPlayerUserId(admin);
@@ -368,11 +469,39 @@ class PlMenu extends BasePlugin implements Plugin {
             authId.toUpperCase() === 'VALVE_ID_LAN';
 
         if (shouldBanByIp) {
-            const ipAddr = utils.getPlayerIP(target);
             nodemod.eng.serverCommand(`addip ${banTime} ${ipAddr};writeip\n`);
+            // Track temp ban by IP
+            if (banTime > 0) {
+                PlMenu.tempBans.set(ipAddr, authId);
+            }
         } else {
             nodemod.eng.serverCommand(`banid ${banTime} #${userId} kick;writeid\n`);
+            // Track temp ban by auth ID
+            if (banTime > 0) {
+                PlMenu.tempBans.set(authId, authId);
+            }
         }
+    }
+
+    /**
+     * Check if a player has a temp ban on record
+     */
+    public static hasTempBan(identifier: string): boolean {
+        return PlMenu.tempBans.has(identifier);
+    }
+
+    /**
+     * Get original auth ID for a temp-banned player
+     */
+    public static getTempBanAuthId(identifier: string): string | undefined {
+        return PlMenu.tempBans.get(identifier);
+    }
+
+    /**
+     * Clear temp ban record
+     */
+    public static clearTempBan(identifier: string): boolean {
+        return PlMenu.tempBans.delete(identifier);
     }
 
     // ==================== SLAP/SLAY MENU ====================
@@ -547,7 +676,8 @@ class PlMenu extends BasePlugin implements Plugin {
 
         const players = adminSystem.getPlayers({ excludeBots: false });
         const adminEntity = entity;
-        const ITEMS_PER_PAGE = 7;  // 7 because we have the team option
+        // 7 items if no silent mode option (non-CS), 6 if we have silent mode option (CS)
+        const ITEMS_PER_PAGE = this.isCSMod ? 6 : 7;
         const start = pos * ITEMS_PER_PAGE;
         const total = players.length;
 
@@ -598,6 +728,20 @@ class PlMenu extends BasePlugin implements Plugin {
             }
         });
 
+        // Silent mode toggle (only show for CS mods)
+        if (this.isCSMod) {
+            const isSilent = this.silentMode.get(entityId) || false;
+            items.push({
+                name: `[${this.getLang(entity, 'TRANSF_SILENT')}: ${isSilent ? this.getLangWithFallback(entity, 'ON') : this.getLangWithFallback(entity, 'OFF')}]`,
+                handler: (client: nodemod.Entity) => {
+                    const clientId = nodemod.eng.indexOfEdict(client);
+                    const currentSilent = this.silentMode.get(clientId) || false;
+                    this.silentMode.set(clientId, !currentSilent);
+                    setTimeout(() => this.displayTeamMenu(client, this.menuPosition.get(clientId) || 0), 0);
+                }
+            });
+        }
+
         // Navigation
         if (end < total) {
             items.push({
@@ -628,6 +772,7 @@ class PlMenu extends BasePlugin implements Plugin {
     private transferPlayer(admin: nodemod.Entity, target: nodemod.Entity) {
         const adminId = nodemod.eng.indexOfEdict(admin);
         const teamIdx = this.menuOption.get(adminId) || 0;
+        const isSilent = this.silentMode.get(adminId) || false;
 
         const adminName = admin.netname || 'Admin';
         const targetName = target.netname || 'Unknown';
@@ -637,7 +782,11 @@ class PlMenu extends BasePlugin implements Plugin {
         const targetAuthId = nodemod.eng.getPlayerAuthId(target) || '';
 
         this.logAmx(`Cmd: "${adminName}<${adminUserId}><${adminAuthId}><>" transfer "${targetName}<${targetUserId}><${targetAuthId}><>" (team "${TEAM_NAMES[teamIdx]}")`);
-        this.showActivity(admin, this.getLang(null, 'ADMIN_TRANSF_2', adminName, targetName, TEAM_NAMES[teamIdx]));
+
+        // Only show activity if not in silent mode
+        if (!isSilent) {
+            this.showActivity(admin, this.getLang(null, 'ADMIN_TRANSF_2', adminName, targetName, TEAM_NAMES[teamIdx]));
+        }
 
         // Kill player if alive before transfer, preserving death count
         if (utils.isAlive(target)) {

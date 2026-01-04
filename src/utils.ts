@@ -752,6 +752,7 @@ export function showActivityToAll(adminEntity: nodemod.Entity | null, message: s
 /**
  * AMXX Menu Color Codes
  * These are interpreted by the HL client when rendering menus
+ * NOTE: Only certain mods support these codes (CS, CZ, DoD, TFC, DMC, Valve)
  */
 export const MenuColors = {
     YELLOW: '\\y',   // Yellow - used for titles and highlights
@@ -760,6 +761,25 @@ export const MenuColors = {
     RED: '\\r',      // Red
     RIGHT: '\\R',    // Right-align following text
 } as const;
+
+/**
+ * Check if the current mod supports colored menus.
+ * Matches AMXX's colored_menus() stock function behavior.
+ *
+ * Supported mods: cstrike, czero, dmc, dod, tfc, valve
+ */
+let _coloredMenusCache: boolean | null = null;
+export function coloredMenus(): boolean {
+    if (_coloredMenusCache !== null) {
+        return _coloredMenusCache;
+    }
+
+    const supportedMods = ['cstrike', 'czero', 'dmc', 'dod', 'tfc', 'valve'];
+    const modName = (nodemod.gameDir || '').toLowerCase();
+
+    _coloredMenusCache = supportedMods.some(mod => modName === mod || modName.includes(mod));
+    return _coloredMenusCache;
+}
 
 /**
  * Menu formatter interface matching nodemodCore.menu format
@@ -772,42 +792,73 @@ export interface MenuFormatters {
 }
 
 /**
- * Colored menu formatters matching AMXX style
- * Use these with nodemodCore.menu.show({ formatters: coloredMenuFormatters })
+ * Menu formatters matching AMXX style.
+ * Automatically detects if colored menus are supported by the current mod.
+ * Use these with nodemodCore.menu.show({ formatters: getMenuFormatters() })
+ */
+export function getMenuFormatters(): MenuFormatters {
+    const useColors = coloredMenus();
+
+    return {
+        title: (title: string) => useColors
+            ? `${MenuColors.YELLOW}${title}${MenuColors.WHITE}`
+            : title,
+        item: (item: { name: string; disabled?: boolean }, index: number, isDisabled: boolean) => {
+            if (isDisabled && useColors) {
+                return `${MenuColors.GREY}${index + 1}. ${item.name}${MenuColors.WHITE}`;
+            }
+            return `${index + 1}. ${item.name}`;
+        },
+        pagination: (current: number, total: number) => useColors
+            ? `${MenuColors.YELLOW}Page ${current}/${total}${MenuColors.WHITE}`
+            : `Page ${current}/${total}`,
+        divider: () => '',
+    };
+}
+
+/**
+ * @deprecated Use getMenuFormatters() instead which auto-detects color support
  */
 export const coloredMenuFormatters: MenuFormatters = {
-    title: (title: string) => `${MenuColors.YELLOW}${title}${MenuColors.WHITE}`,
+    title: (title: string) => coloredMenus()
+        ? `${MenuColors.YELLOW}${title}${MenuColors.WHITE}`
+        : title,
     item: (item: { name: string; disabled?: boolean }, index: number, isDisabled: boolean) => {
-        if (isDisabled) {
+        if (isDisabled && coloredMenus()) {
             return `${MenuColors.GREY}${index + 1}. ${item.name}${MenuColors.WHITE}`;
         }
         return `${index + 1}. ${item.name}`;
     },
-    pagination: (current: number, total: number) =>
-        `${MenuColors.YELLOW}Page ${current}/${total}${MenuColors.WHITE}`,
+    pagination: (current: number, total: number) => coloredMenus()
+        ? `${MenuColors.YELLOW}Page ${current}/${total}${MenuColors.WHITE}`
+        : `Page ${current}/${total}`,
     divider: () => '',
 };
 
 /**
- * Get colored formatters with custom title color
+ * Get formatters with custom colors (only applied if mod supports colored menus)
  */
 export function getColoredFormatters(options?: {
     titleColor?: string;
     disabledColor?: string;
 }): MenuFormatters {
+    const useColors = coloredMenus();
     const titleColor = options?.titleColor ?? MenuColors.YELLOW;
     const disabledColor = options?.disabledColor ?? MenuColors.GREY;
 
     return {
-        title: (title: string) => `${titleColor}${title}${MenuColors.WHITE}`,
+        title: (title: string) => useColors
+            ? `${titleColor}${title}${MenuColors.WHITE}`
+            : title,
         item: (item: { name: string; disabled?: boolean }, index: number, isDisabled: boolean) => {
-            if (isDisabled) {
+            if (isDisabled && useColors) {
                 return `${disabledColor}${index + 1}. ${item.name}${MenuColors.WHITE}`;
             }
             return `${index + 1}. ${item.name}`;
         },
-        pagination: (current: number, total: number) =>
-            `${titleColor}Page ${current}/${total}${MenuColors.WHITE}`,
+        pagination: (current: number, total: number) => useColors
+            ? `${titleColor}Page ${current}/${total}${MenuColors.WHITE}`
+            : `Page ${current}/${total}`,
         divider: () => '',
     };
 }

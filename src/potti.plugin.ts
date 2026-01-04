@@ -943,7 +943,7 @@ class Potti extends BasePlugin implements Plugin {
     // Lifecycle
     // ============================================================================
 
-    onUnload(): void {
+    override onUnload(): void {
         // Cleanup intervals
         this.delBotForwards();
 

@@ -58,7 +58,13 @@ class InfoMessages extends BasePlugin implements Plugin {
         // Register CVAR
         this.registerCvar('amx_freq_imessage', '10', nodemod.FCVAR.SERVER, 'Frequency of info messages in seconds (0 = disabled)');
         this.amxFreqImessage = cvar.wrap('amx_freq_imessage');
+    }
 
+    /**
+     * Called when plugin is loaded - register commands and load messages
+     * Equivalent to plugin_init
+     */
+    override onLoad() {
         // Register server command
         this.registerServerCommand('amx_imessage', 0, '<message> [color] - add info message', (args) => {
             this.setMessage(args);
@@ -69,7 +75,13 @@ class InfoMessages extends BasePlugin implements Plugin {
 
         // Load persisted message index
         this.loadIndex();
+    }
 
+    /**
+     * Called after all plugins loaded and configs executed
+     * Equivalent to plugin_cfg - start timer after cvars are set
+     */
+    override onConfig() {
         // Schedule initial timer if messages were loaded and frequency > 0
         if (this.messages.length > 0) {
             const freq = this.amxFreqImessage?.float || 10;
@@ -77,6 +89,23 @@ class InfoMessages extends BasePlugin implements Plugin {
                 this.scheduleNextMessage(freq);
             }
         }
+    }
+
+    /**
+     * Called when plugin is unloading - save state
+     * Equivalent to plugin_end
+     */
+    override onUnload() {
+        // Save current message index for next load
+        this.saveIndex();
+
+        // Clear timer if active
+        if (this.timerId) {
+            clearTimeout(this.timerId);
+            this.timerId = null;
+        }
+
+        super.onUnload();
     }
 
     private getStateFile(): string {

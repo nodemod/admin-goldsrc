@@ -55,16 +55,23 @@ class AdminCommands extends BasePlugin implements Plugin {
     private disconnectionQueue: DisconnectedPlayer[] = [];
     private queueTracker = 0;
 
-    // Pause state
+    // Game pause state (amx_pause command, separate from plugin pause state)
     private pausable: any;
     private rconPassword: any;
-    private paused = false;
+    private gamePaused = false;
     private pauseAllowed = false;
     private pauseInitiator: nodemod.Entity | null = null;
     private savedPausable = 0;
 
     // Protected CVARs that require RCON access to modify
     private protectedCvars: Set<string> = new Set();
+
+    // Cross-plugin shared variables (xvar system)
+    private static xvars: Map<string, number> = new Map();
+    private protectedXvars: Set<string> = new Set();
+
+    // Timelimit CVAR pointer
+    private timelimit: any;
 
     constructor(pluginName: string) {
         super(pluginName);
@@ -75,15 +82,32 @@ class AdminCommands extends BasePlugin implements Plugin {
         // Get CVAR pointers
         this.pausable = cvar.wrap('pausable');
         this.rconPassword = cvar.wrap('rcon_password');
+        this.timelimit = cvar.wrap('mp_timelimit');
+    }
 
-        // Register commands
+    /**
+     * Called when plugin is loaded - register commands and event handlers
+     * Equivalent to plugin_init
+     */
+    override onLoad() {
         this.registerCommands();
-
-        // Setup event handlers
         this.setupEventHandlers();
+    }
 
-        // Initialize protected CVARs (equivalent to plugin_cfg in AMXX)
+    /**
+     * Called after all plugins loaded and configs executed
+     * Equivalent to plugin_cfg
+     */
+    override onConfig() {
         this.initProtectedCvars();
+    }
+
+    /**
+     * Called when plugin is unloading - cleanup resources
+     * Equivalent to plugin_end
+     */
+    override onUnload() {
+        super.onUnload();
     }
 
     /**
@@ -207,6 +231,18 @@ class AdminCommands extends BasePlugin implements Plugin {
             this.cmdModules(entity);
         });
 
+        this.registerCommand('amx_extendmap', ADMIN_MAP, '<minutes> - extend the current map', (entity, args) => {
+            this.cmdExtendMap(entity, args);
+        });
+
+        this.registerCommand('amx_xvar_float', ADMIN_CVAR, '<xvar> [value] - get/set float xvar', (entity, args) => {
+            this.cmdXvar(entity, args, true);
+        });
+
+        this.registerCommand('amx_xvar_int', ADMIN_CVAR, '<xvar> [value] - get/set int xvar', (entity, args) => {
+            this.cmdXvar(entity, args, false);
+        });
+
         // Client-only command (no help entry)
         nodemodCore.cmd.registerClient('pauseAck', (entity) => {
             this.cmdPauseAck();
@@ -215,7 +251,7 @@ class AdminCommands extends BasePlugin implements Plugin {
 
     private setupEventHandlers() {
         // Track disconnections for amx_last/amx_addban
-        nodemod.on('dllClientDisconnect', (entity: nodemod.Entity) => {
+        this.on('dllClientDisconnect', (entity: nodemod.Entity) => {
             if (!utils.isBot(entity)) {
                 this.insertDisconnectionInfo(entity);
             }
@@ -863,11 +899,11 @@ class AdminCommands extends BasePlugin implements Plugin {
         if (entity) {
             const adminAuthId = nodemod.eng.getPlayerAuthId(entity) || '';
             const adminUserId = nodemod.eng.getPlayerUserId(entity);
-            this.logAmx(`Cmd: "${adminName}<${adminUserId}><${adminAuthId}><>" ${this.paused ? 'unpause' : 'pause'} server`);
+            this.logAmx(`Cmd: "${adminName}<${adminUserId}><${adminAuthId}><>" ${this.gamePaused ? 'unpause' : 'pause'} server`);
         }
 
-        this.sendConsole(entity, `[NodeMod] ${this.getLang(entity, this.paused ? 'UNPAUSING' : 'PAUSING')}`);
-        this.showActivity(entity, `${this.getLang(null, this.paused ? 'UNPAUSE' : 'PAUSE')} server`);
+        this.sendConsole(entity, `[NodeMod] ${this.getLang(entity, this.gamePaused ? 'UNPAUSING' : 'PAUSING')}`);
+        this.showActivity(entity, `${this.getLang(null, this.gamePaused ? 'UNPAUSE' : 'PAUSE')} server`);
     }
 
     /**
@@ -879,11 +915,11 @@ class AdminCommands extends BasePlugin implements Plugin {
         // Restore pausable value
         cvar.setFloat('pausable', this.savedPausable);
 
-        const statusMsg = this.paused ? 'UNPAUSED' : 'PAUSED';
+        const statusMsg = this.gamePaused ? 'UNPAUSED' : 'PAUSED';
         this.sendConsole(this.pauseInitiator, `[NodeMod] Server ${this.getLang(this.pauseInitiator, statusMsg)}`);
 
         this.pauseAllowed = false;
-        this.paused = !this.paused;
+        this.gamePaused = !this.gamePaused;
     }
 
     /**
@@ -1065,6 +1101,144 @@ class AdminCommands extends BasePlugin implements Plugin {
         this.sendConsole(entity, '  There is no separate module system.');
         this.sendConsole(entity, '  Use amx_plugins to see loaded plugins.');
         this.sendConsole(entity, '----- 0 modules -----');
+    }
+
+    /**
+     * amx_extendmap <minutes> - Extend the current map's timelimit
+     */
+    private cmdExtendMap(entity: nodemod.Entity | null, args: string[]) {
+        if (!adminSystem.cmdAccess(entity, ADMIN_MAP)) return;
+
+        if (args.length < 1) {
+            this.sendConsole(entity, this.getLang(entity, 'USAGE_EXTENDMAP'));
+            return;
+        }
+
+        const minutes = parseInt(args[0]) || 0;
+        if (minutes <= 0) {
+            this.sendConsole(entity, this.getLang(entity, 'USAGE_EXTENDMAP'));
+            return;
+        }
+
+        const adminName = this.getAdminName(entity);
+        const mapName = nodemod.mapname || 'unknown';
+
+        // Get current timelimit and add minutes
+        const currentLimit = this.timelimit?.float || 0;
+        const newLimit = currentLimit + minutes;
+        cvar.setFloat('mp_timelimit', newLimit);
+
+        // Log the action
+        if (entity) {
+            const adminAuthId = nodemod.eng.getPlayerAuthId(entity) || '';
+            const adminUserId = nodemod.eng.getPlayerUserId(entity);
+            this.logAmx(`ExtendMap: "${adminName}<${adminUserId}><${adminAuthId}><>" extended map "${mapName}" for ${minutes} minutes.`);
+        }
+
+        // Show activity
+        this.showActivityKey(entity, 'ADMIN_EXTEND_1', 'ADMIN_EXTEND_2', minutes);
+
+        this.sendConsole(entity, `[NodeMod] ${this.getLang(entity, 'MAP_EXTENDED', mapName, minutes)}`);
+    }
+
+    /**
+     * amx_xvar_float / amx_xvar_int - Get/set cross-plugin shared variables
+     *
+     * The xvar system allows plugins to share variables across the plugin boundary.
+     * In AMXX this was implemented via get_xvar_id/get_xvar_num/set_xvar_num.
+     * In NodeMod, we use a static Map for simplicity.
+     */
+    private cmdXvar(entity: nodemod.Entity | null, args: string[], isFloat: boolean) {
+        if (!adminSystem.cmdAccess(entity, ADMIN_CVAR)) return;
+
+        if (args.length < 1) {
+            this.sendConsole(entity, this.getLang(entity, isFloat ? 'USAGE_XVAR_FLOAT' : 'USAGE_XVAR_INT'));
+            return;
+        }
+
+        const xvarName = args[0];
+
+        // Handle "add" subcommand (protect an xvar - RCON only)
+        if (xvarName.toLowerCase() === 'add' && args.length >= 2) {
+            if (!adminSystem.hasAccess(entity, ADMIN_RCON)) {
+                this.sendConsole(entity, `[NodeMod] ${this.getLang(entity, 'NO_ACCESS')}`);
+                return;
+            }
+            const targetXvar = args[1];
+            this.protectedXvars.add(targetXvar.toLowerCase());
+            this.sendConsole(entity, `[NodeMod] Xvar "${targetXvar}" is now protected.`);
+            return;
+        }
+
+        // If no value provided, show current value
+        if (args.length < 2) {
+            const currentValue = AdminCommands.xvars.get(xvarName) ?? 0;
+            const displayValue = isFloat ? currentValue.toFixed(6) : Math.floor(currentValue).toString();
+            this.sendConsole(entity, `[NodeMod] ${this.getLang(entity, 'XVAR_IS', xvarName, displayValue)}`);
+            return;
+        }
+
+        // Check if xvar is protected (need RCON access)
+        if (this.protectedXvars.has(xvarName.toLowerCase()) && !adminSystem.hasAccess(entity, ADMIN_RCON)) {
+            this.sendConsole(entity, `[NodeMod] ${this.getLang(entity, 'XVAR_NO_ACC')}`);
+            return;
+        }
+
+        // Parse and set value
+        const valueStr = args[1];
+        let newValue: number;
+
+        if (isFloat) {
+            newValue = parseFloat(valueStr);
+            if (isNaN(newValue)) {
+                this.sendConsole(entity, `[NodeMod] Invalid float value.`);
+                return;
+            }
+        } else {
+            newValue = parseInt(valueStr);
+            if (isNaN(newValue)) {
+                this.sendConsole(entity, `[NodeMod] Invalid integer value.`);
+                return;
+            }
+        }
+
+        AdminCommands.xvars.set(xvarName, newValue);
+
+        const displayValue = isFloat ? newValue.toFixed(6) : Math.floor(newValue).toString();
+        this.sendConsole(entity, `[NodeMod] Xvar "${xvarName}" set to ${displayValue}`);
+
+        // Log the action
+        const adminName = this.getAdminName(entity);
+        if (entity) {
+            const adminAuthId = nodemod.eng.getPlayerAuthId(entity) || '';
+            const adminUserId = nodemod.eng.getPlayerUserId(entity);
+            this.logAmx(`Cmd: "${adminName}<${adminUserId}><${adminAuthId}><>" set xvar (name "${xvarName}") (value "${displayValue}")`);
+        }
+    }
+
+    // ============================================================================
+    // Xvar System API (for other plugins)
+    // ============================================================================
+
+    /**
+     * Get an xvar value (for use by other plugins)
+     */
+    static getXvar(name: string): number {
+        return AdminCommands.xvars.get(name) ?? 0;
+    }
+
+    /**
+     * Set an xvar value (for use by other plugins)
+     */
+    static setXvar(name: string, value: number): void {
+        AdminCommands.xvars.set(name, value);
+    }
+
+    /**
+     * Check if an xvar exists
+     */
+    static hasXvar(name: string): boolean {
+        return AdminCommands.xvars.has(name);
     }
 }
 

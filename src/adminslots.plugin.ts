@@ -40,23 +40,16 @@ class AdminSlots extends BasePlugin implements Plugin {
 
         // Load localization
         localization.loadDictionary(this.pluginName);
-
-        // Setup event handlers
-        this.setupEventHandlers();
-
-        // Start auth polling timer (every 0.7s like AMXX)
-        this.authCheckTimer = setInterval(() => this.checkPendingAuth(), 700);
-
-        // Map loaded task (equivalent to plugin_cfg + set_task)
-        setTimeout(() => {
-            this.onMapLoaded();
-        }, 3000);
     }
 
-    private setupEventHandlers() {
+    /**
+     * Called when plugin is loaded - setup event handlers
+     * Equivalent to plugin_init
+     */
+    override onLoad() {
         // Client connect - check if auth is immediately available or add to pending
         // This mirrors AMXX's C_ClientConnect_Post behavior
-        nodemod.on('dllClientConnect', (entity: nodemod.Entity) => {
+        this.on('dllClientConnect', (entity: nodemod.Entity) => {
             if (utils.isBot(entity)) return;
 
             const authId = nodemod.eng.getPlayerAuthId(entity) || '';
@@ -73,11 +66,23 @@ class AdminSlots extends BasePlugin implements Plugin {
         });
 
         // Client disconnect - update visible slots and remove from pending
-        nodemod.on('dllClientDisconnect', (entity: nodemod.Entity) => {
+        this.on('dllClientDisconnect', (entity: nodemod.Entity) => {
             const index = nodemod.eng.indexOfEdict(entity);
             this.pendingAuth.delete(index);
             this.onClientDisconnect(entity);
         });
+
+        // Start auth polling timer (every 0.7s like AMXX)
+        this.authCheckTimer = setInterval(() => this.checkPendingAuth(), 700);
+    }
+
+    /**
+     * Called after all plugins loaded and configs executed
+     * Equivalent to plugin_cfg
+     */
+    override onConfig() {
+        // Apply slot visibility settings after config files have set CVARs
+        this.onMapLoaded();
     }
 
     /**
@@ -167,12 +172,17 @@ class AdminSlots extends BasePlugin implements Plugin {
         cvar.setString('sv_visiblemaxplayers', String(num));
     }
 
-    onUnload() {
+    /**
+     * Called when plugin is unloading - cleanup resources
+     * Equivalent to plugin_end
+     */
+    override onUnload() {
         if (this.authCheckTimer) {
             clearInterval(this.authCheckTimer);
             this.authCheckTimer = null;
         }
         this.pendingAuth.clear();
+        super.onUnload();
     }
 }
 

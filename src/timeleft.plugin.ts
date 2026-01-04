@@ -405,7 +405,7 @@ class TimeLeft extends BasePlugin implements Plugin {
     /**
      * Plugin unload
      */
-    onUnload() {
+    override onUnload() {
         this.stopTimer();
     }
 }

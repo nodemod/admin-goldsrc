@@ -73,12 +73,35 @@ class MapsMenu extends BasePlugin implements Plugin {
         this.amxVoteDelay = cvar.wrap('amx_vote_delay');
         this.amxVoteAnswers = cvar.wrap('amx_vote_answers');
         this.amxLastVoting = cvar.wrap('amx_last_voting');
+    }
 
+    /**
+     * Called when plugin is loaded - register commands and load map list
+     * Equivalent to plugin_init
+     */
+    override onLoad() {
         // Load map list
         this.loadSettings();
 
         // Register commands
         this.registerCommands();
+    }
+
+    /**
+     * Called when plugin is unloading - cleanup timers
+     * Equivalent to plugin_end
+     */
+    override onUnload() {
+        // Clear any active vote timers
+        if (this.voteState.timeoutId) {
+            clearTimeout(this.voteState.timeoutId);
+        }
+        if (this.voteState.confirmTimeoutId) {
+            clearTimeout(this.voteState.confirmTimeoutId);
+        }
+        this.voteState = this.getCleanVoteState();
+
+        super.onUnload();
     }
 
     private getCleanVoteState(): VoteState {
