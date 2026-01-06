@@ -223,7 +223,7 @@ class AdminCommands extends BasePlugin implements Plugin {
             this.cmdLast(entity);
         });
 
-        this.registerCommand('amx_plugins', ADMIN_ADMIN, '[page] - list loaded plugins', (entity, args) => {
+        this.registerCommand('amx_plugins', ADMIN_ADMIN, '[start] - list loaded plugins', (entity, args) => {
             this.cmdPlugins(entity, args);
         });
 
@@ -1031,7 +1031,7 @@ class AdminCommands extends BasePlugin implements Plugin {
     }
 
     /**
-     * amx_plugins [page] - List loaded plugins with pagination
+     * amx_plugins [start] - List loaded plugins with pagination (consistent with amx_help)
      */
     private cmdPlugins(entity: nodemod.Entity | null, args: string[]) {
         if (!adminSystem.cmdAccess(entity, ADMIN_ADMIN)) return;
@@ -1039,18 +1039,19 @@ class AdminCommands extends BasePlugin implements Plugin {
         const PLUGINS_PER_PAGE = 10;
         const plugins = pluginLoader.getPlugins();
         const totalPlugins = plugins.length;
-        const totalPages = Math.ceil(totalPlugins / PLUGINS_PER_PAGE);
 
-        // Parse page number
-        let page = 1;
-        if (args.length > 0) {
-            const parsedPage = parseInt(args[0]);
-            if (!isNaN(parsedPage) && parsedPage > 0) {
-                page = Math.min(parsedPage, totalPages);
-            }
+        // Parse starting position (1-based, like amx_help)
+        let start = args.length > 0 ? parseInt(args[0]) || 1 : 1;
+
+        // Adjust to 0-based index
+        start--;
+        if (start < 0) start = 0;
+
+        if (start >= totalPlugins) {
+            start = Math.max(0, totalPlugins - 1);
         }
 
-        const startIndex = (page - 1) * PLUGINS_PER_PAGE;
+        const startIndex = start;
         const endIndex = Math.min(startIndex + PLUGINS_PER_PAGE, totalPlugins);
 
         this.sendConsole(entity, '');
@@ -1079,8 +1080,8 @@ class AdminCommands extends BasePlugin implements Plugin {
         this.sendConsole(entity, `----- ${localization.getLang(entity, 'adminhelp', 'HELP_ENTRIES', startIndex + 1, endIndex, totalPlugins)} -----`);
         this.sendConsole(entity, this.getLang(entity, 'PLUGINS_RUN', runningCount, runningCount));
 
-        if (page < totalPages) {
-            this.sendConsole(entity, `----- ${localization.getLang(entity, 'adminhelp', 'HELP_USE_MORE', 'amx_plugins', page + 1)} -----`);
+        if (endIndex < totalPlugins) {
+            this.sendConsole(entity, `----- ${localization.getLang(entity, 'adminhelp', 'HELP_USE_MORE', 'amx_plugins', endIndex + 1)} -----`);
         }
     }
 

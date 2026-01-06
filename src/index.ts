@@ -81,14 +81,10 @@ nodemod.on('dllSpawn', (entity: nodemod.Entity) => {
 // Reset precache flag when map ends
 nodemod.on('dllServerDeactivate', () => {
     precacheCalled = false;
+    pluginLoader.callMapEnd();
 });
 
 // Call onMapStart() when server is activated (map loaded, ready for players)
 nodemod.on('dllServerActivate', () => {
     pluginLoader.callMapStart();
-});
-
-// Call onMapEnd() when server is deactivating (map ending)
-nodemod.on('dllServerDeactivate', () => {
-    pluginLoader.callMapEnd();
 });

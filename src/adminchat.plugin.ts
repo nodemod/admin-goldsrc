@@ -112,7 +112,7 @@ class AdminChat extends BasePlugin implements Plugin {
         nodemodCore.cmd.registerClient('say', (entity, args) => {
             const message = args.join(' ').replace(/^"|"$/g, '');
             if (this.handleSayChat(entity, message)) {
-                nodemod.setMetaResult(nodemod.META_RES.SUPERCEDE);
+                nodemod.setMetaResult(nodemod.MRES.SUPERCEDE);
             }
         });
 
@@ -120,7 +120,7 @@ class AdminChat extends BasePlugin implements Plugin {
         nodemodCore.cmd.registerClient('say_team', (entity, args) => {
             const message = args.join(' ').replace(/^"|"$/g, '');
             if (this.handleSayAdmin(entity, message)) {
-                nodemod.setMetaResult(nodemod.META_RES.SUPERCEDE);
+                nodemod.setMetaResult(nodemod.MRES.SUPERCEDE);
             }
         });
     }

@@ -983,7 +983,7 @@ export function loadMapList(options?: LoadMapsOptions): string[] {
  */
 export function sendIntermission(): void {
     try {
-        nodemod.eng.messageBegin(nodemod.MSG_DEST.ALL, nodemod.MSG_TYPE.INTERMISSION, [0, 0, 0], null);
+        nodemod.eng.messageBegin(nodemod.MSG.ALL, nodemod.SVC.INTERMISSION, [0, 0, 0], null);
         nodemod.eng.messageEnd();
     } catch (e) {
         // Silently fail if message API not available

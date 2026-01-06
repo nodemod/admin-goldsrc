@@ -52,13 +52,13 @@ class AntiFlood extends BasePlugin implements Plugin {
         // Check flood on say commands
         nodemodCore.cmd.registerClient('say', (entity, args) => {
             if (this.checkFlood(entity)) {
-                nodemod.setMetaResult(nodemod.META_RES.SUPERCEDE);
+                nodemod.setMetaResult(nodemod.MRES.SUPERCEDE);
             }
         });
 
         nodemodCore.cmd.registerClient('say_team', (entity, args) => {
             if (this.checkFlood(entity)) {
-                nodemod.setMetaResult(nodemod.META_RES.SUPERCEDE);
+                nodemod.setMetaResult(nodemod.MRES.SUPERCEDE);
             }
         });
     }

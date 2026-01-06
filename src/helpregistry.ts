@@ -11,6 +11,7 @@ export interface HelpCommand {
     flags: number;
     description: string;
     plugin?: string;  // Plugin filename that registered this command
+    serverOnly?: boolean;  // If true, only shown in server console help, not client amx_help
 }
 
 // ============================================================================
@@ -76,17 +77,19 @@ class HelpRegistry {
      * @param flags Required access flags (e.g., ADMIN_KICK)
      * @param description Command description/usage
      * @param plugin Optional plugin filename that registered this command
+     * @param serverOnly If true, command is only shown in server console help
      */
-    register(name: string, flags: number, description: string, plugin?: string): void {
+    register(name: string, flags: number, description: string, plugin?: string, serverOnly?: boolean): void {
         // Check if already registered
         const existing = this.commands.find(c => c.name === name);
         if (existing) {
             existing.flags = flags;
             existing.description = description;
             if (plugin) existing.plugin = plugin;
+            if (serverOnly !== undefined) existing.serverOnly = serverOnly;
             return;
         }
-        this.commands.push({ name, flags, description, plugin });
+        this.commands.push({ name, flags, description, plugin, serverOnly });
     }
 
     /**
@@ -115,11 +118,16 @@ class HelpRegistry {
 
     /**
      * Get commands accessible by a user with given flags
+     * @param userFlags User's access flags
+     * @param isServer If true, include server-only commands (for server console)
      */
-    getAccessibleCommands(userFlags: number): HelpCommand[] {
+    getAccessibleCommands(userFlags: number, isServer: boolean = false): HelpCommand[] {
         return this.commands.filter(cmd => {
             // Skip commands with empty descriptions (hidden from help)
             if (!cmd.description || cmd.description.trim() === '') return false;
+
+            // Skip server-only commands for clients
+            if (cmd.serverOnly && !isServer) return false;
 
             if (cmd.flags === 0) return true; // Everyone can access
             if (cmd.flags === ADMIN_ADMIN) {
@@ -131,16 +139,22 @@ class HelpRegistry {
 
     /**
      * Get total command count for a user
+     * @param userFlags User's access flags
+     * @param isServer If true, include server-only commands
      */
-    getCommandCount(userFlags: number): number {
-        return this.getAccessibleCommands(userFlags).length;
+    getCommandCount(userFlags: number, isServer: boolean = false): number {
+        return this.getAccessibleCommands(userFlags, isServer).length;
     }
 
     /**
      * Get a page of commands for a user
+     * @param userFlags User's access flags
+     * @param start Start index
+     * @param amount Number of commands to return
+     * @param isServer If true, include server-only commands
      */
-    getCommandPage(userFlags: number, start: number, amount: number): HelpCommand[] {
-        const accessible = this.getAccessibleCommands(userFlags);
+    getCommandPage(userFlags: number, start: number, amount: number, isServer: boolean = false): HelpCommand[] {
+        const accessible = this.getAccessibleCommands(userFlags, isServer);
         return accessible.slice(start, start + amount);
     }
 }
@@ -172,6 +186,7 @@ export function registerCommand(
 /**
  * Register a server-only command with both the command system and help registry.
  * This command can only be executed from the server console or rcon.
+ * Server commands are NOT shown in amx_help for clients.
  *
  * @param name Command name (e.g., "amx_imessage")
  * @param flags Required access flags (usually 0 for server commands)
@@ -187,7 +202,7 @@ export function registerServerCommand(
     plugin?: string
 ): void {
     nodemodCore.cmd.registerServer(name, callback);
-    helpRegistry.register(name, flags, description, plugin);
+    helpRegistry.register(name, flags, description, plugin, true);  // serverOnly = true
 }
 
 /**

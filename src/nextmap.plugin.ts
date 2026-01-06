@@ -162,7 +162,7 @@ class NextMap extends BasePlugin implements Plugin {
         // Hook engMessageBegin to detect SVC_INTERMISSION (msg_type=30)
         // This is equivalent to register_event("30", "changeMap", "a") in AMXX
         nodemod.on('engMessageBegin', (msg_dest: number, msg_type: number, pOrigin: number[], ed: nodemod.Entity | null) => {
-            // MSG_TYPE.INTERMISSION = 30
+            // SVC.INTERMISSION = 30
             if (msg_type === 30 && !mapChangeTriggered) {
                 mapChangeTriggered = true;
                 console.log(`[NextMap] SVC_INTERMISSION detected, triggering map change`);

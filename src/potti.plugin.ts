@@ -523,7 +523,7 @@ class Potti extends BasePlugin implements Plugin {
                 this.changeToWeapon(bot, num);
             }
 
-            nodemod.setMetaResult(nodemod.META_RES.SUPERCEDE);
+            nodemod.setMetaResult(nodemod.MRES.SUPERCEDE);
             return;
         } else if (this.fullControl.get(ownerIndex)) {
             // Check if command is in the allowed list
@@ -541,7 +541,7 @@ class Potti extends BasePlugin implements Plugin {
                 this.botCommand(bot, cmd, args[1] || '', args[2] || '');
             }
 
-            nodemod.setMetaResult(nodemod.META_RES.SUPERCEDE);
+            nodemod.setMetaResult(nodemod.MRES.SUPERCEDE);
         }
     }
 
@@ -557,10 +557,10 @@ class Potti extends BasePlugin implements Plugin {
 
         // If owner is dead, prevent certain actions from affecting them
         if (!alive) {
-            const mask = nodemod.IN_BUTTON.JUMP | nodemod.IN_BUTTON.ATTACK |
-                nodemod.IN_BUTTON.ATTACK2 | nodemod.IN_BUTTON.FORWARD |
-                nodemod.IN_BUTTON.BACK | nodemod.IN_BUTTON.MOVELEFT |
-                nodemod.IN_BUTTON.MOVERIGHT;
+            const mask = nodemod.IN.JUMP | nodemod.IN.ATTACK |
+                nodemod.IN.ATTACK2 | nodemod.IN.FORWARD |
+                nodemod.IN.BACK | nodemod.IN.MOVELEFT |
+                nodemod.IN.MOVERIGHT;
             cmd.buttons = buttons & ~mask;
         }
 
@@ -570,17 +570,17 @@ class Potti extends BasePlugin implements Plugin {
 
             let angles = [...cmd.viewangles];
 
-            if (movement === 2 && alive && (buttons & nodemod.IN_BUTTON.ATTACK)) {
+            if (movement === 2 && alive && (buttons & nodemod.IN.ATTACK)) {
                 // Aim at owner's look target
                 const target = this.getUserAim(player);
                 angles = this.aimAtOrigin(bot, target);
             } else if (movement === 3 && alive) {
                 // Reverse mode
                 angles[1] += (angles[1] < 180.0) ? 180.0 : -180.0;
-                if (buttons & nodemod.IN_BUTTON.JUMP) {
-                    buttons = (buttons & ~nodemod.IN_BUTTON.JUMP) | nodemod.IN_BUTTON.DUCK;
-                } else if (buttons & nodemod.IN_BUTTON.DUCK) {
-                    buttons = (buttons & ~nodemod.IN_BUTTON.DUCK) | nodemod.IN_BUTTON.JUMP;
+                if (buttons & nodemod.IN.JUMP) {
+                    buttons = (buttons & ~nodemod.IN.JUMP) | nodemod.IN.DUCK;
+                } else if (buttons & nodemod.IN.DUCK) {
+                    buttons = (buttons & ~nodemod.IN.DUCK) | nodemod.IN.JUMP;
                 }
             }
 
@@ -633,7 +633,7 @@ class Potti extends BasePlugin implements Plugin {
                     player.flags = player.flags | nodemod.FL.FAKECLIENT;
                     player.spawnflags = player.spawnflags | nodemod.FL.FAKECLIENT;
                 }
-                finalButtons = nodemod.IN_BUTTON.ATTACK | nodemod.IN_BUTTON.JUMP;
+                finalButtons = nodemod.IN.ATTACK | nodemod.IN.JUMP;
             }
 
             nodemod.eng.runPlayerMove(
@@ -659,7 +659,7 @@ class Potti extends BasePlugin implements Plugin {
             } else {
                 this.sendConsole(entity, "[Potti] Can't suicide -- your bot is already dead");
             }
-            nodemod.setMetaResult(nodemod.META_RES.SUPERCEDE);
+            nodemod.setMetaResult(nodemod.MRES.SUPERCEDE);
         }
     }
 
@@ -700,7 +700,7 @@ class Potti extends BasePlugin implements Plugin {
             // Handle pending bot info events
             const info = this.botInfo.get(ownerIndex) || BotInfo.NONE;
             if (info === BotInfo.MOTD) {
-                bot.button = nodemod.IN_BUTTON.ATTACK;
+                bot.button = nodemod.IN.ATTACK;
                 nodemodCore.util.sendChat('[Potti] Note: a MOTD window was closed on your bot', owner);
             }
             this.botInfo.set(ownerIndex, BotInfo.NONE);
@@ -787,7 +787,7 @@ class Potti extends BasePlugin implements Plugin {
         // Send ShowMenu message
         const msgId = this.getShowMenuMsgId();
         if (msgId) {
-            nodemod.eng.messageBegin(nodemod.MSG_DEST.ONE, msgId, [0, 0, 0], entity);
+            nodemod.eng.messageBegin(nodemod.MSG.ONE, msgId, [0, 0, 0], entity);
             nodemod.eng.writeShort(mode ? this.slotMenuKeys : 0);
             nodemod.eng.writeChar(-1);
             nodemod.eng.writeByte(0);

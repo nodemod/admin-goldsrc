@@ -108,7 +108,9 @@ class AdminHelp extends BasePlugin implements Plugin {
         start--;
         if (start < 0) start = 0;
 
-        const totalCommands = helpRegistry.getCommandCount(userFlags);
+        // Server console sees all commands including server-only ones
+        const isServer = entity === null;
+        const totalCommands = helpRegistry.getCommandCount(userFlags, isServer);
 
         if (totalCommands === 0) {
             this.sendConsole(entity, this.getLang(entity, 'NO_COMMANDS'));
@@ -124,7 +126,7 @@ class AdminHelp extends BasePlugin implements Plugin {
         this.sendConsole(entity, `----- ${this.getLang(entity, 'HELP_COMS')} -----`);
 
         // Get commands for this page
-        const commands = helpRegistry.getCommandPage(userFlags, start, helpAmount);
+        const commands = helpRegistry.getCommandPage(userFlags, start, helpAmount, isServer);
         const end = start + commands.length;
 
         // Display commands
